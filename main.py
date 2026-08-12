@@ -1,12 +1,30 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image as Im
-import io
 
-# Page config - mobile ke liye better layout
 st.set_page_config(page_title="ReadX AI", page_icon="📖", layout="centered")
 
-# API key ab Secrets se aayegi, code mein nahi
+# Camera UI ko bada aur clean banane ke liye CSS
+st.markdown("""
+    <style>
+    [data-testid="stCameraInput"] video {
+        width: 100% !important;
+        border-radius: 12px;
+    }
+    [data-testid="stCameraInput"] button {
+        width: 100%;
+        padding: 14px;
+        font-size: 18px;
+        border-radius: 10px;
+        background-color: #FF4B4B;
+        color: white;
+    }
+    .block-container {
+        padding-top: 1rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
 # Session state initialize karo
