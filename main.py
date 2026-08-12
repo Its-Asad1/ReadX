@@ -7,18 +7,24 @@ st.set_page_config(page_title="ReadX AI", page_icon="📖", layout="centered")
 # Camera UI ko bada aur clean banane ke liye CSS
 st.markdown("""
     <style>
+    [data-testid="stCameraInput"] > div:first-child {
+        aspect-ratio: 3 / 4 !important;
+        overflow: hidden !important;
+        border-radius: 12px;
+        max-width: 380px;
+        margin: 0 auto;
+    }
     [data-testid="stCameraInput"] video {
         width: 100% !important;
-        aspect-ratio: 3 / 4 !important;
+        height: 100% !important;
         object-fit: cover !important;
-        border-radius: 12px;
-    }
-    [data-testid="stCameraInput"] > div {
-        max-width: 420px;
-        margin: 0 auto;
+        object-position: center !important;
     }
     [data-testid="stCameraInput"] button {
         width: 100%;
+        max-width: 380px;
+        display: block;
+        margin: 10px auto 0 auto;
         padding: 14px;
         font-size: 18px;
         border-radius: 10px;
