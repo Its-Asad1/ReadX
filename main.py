@@ -9,7 +9,13 @@ st.markdown("""
     <style>
     [data-testid="stCameraInput"] video {
         width: 100% !important;
+        aspect-ratio: 3 / 4 !important;
+        object-fit: cover !important;
         border-radius: 12px;
+    }
+    [data-testid="stCameraInput"] > div {
+        max-width: 420px;
+        margin: 0 auto;
     }
     [data-testid="stCameraInput"] button {
         width: 100%;
