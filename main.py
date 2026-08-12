@@ -1,99 +1,115 @@
 import streamlit as st
 import google.generativeai as genai
-from PIL import Image as Im
+from PIL import Image
 
-st.set_page_config(page_title="ReadX AI", page_icon="📖", layout="centered")
+# 1. API Setup
+# genai.configure(api_key="PASTE_YOUR_COPIED_API_KEY_HERE")
 
-# Camera UI ko bada aur clean banane ke liye CSS
-st.markdown("""
-    <style>
-    /* Camera container ko tall/vertical banana */
-    [data-testid="stCameraInput"] > div:first-child {
-        aspect-ratio: 9 / 16 !important;
-        height: 60vh !important; /* Screen ki height ke mutabiq adjust hoga */
-        max-height: 520px !important;
-        max-width: 100% !important;
-        overflow: hidden !important;
-        border-radius: 16px;
-        border: 2px solid #333;
-        margin: 0 auto;
-    }
+st.set_page_config(page_title="ReadX Mobile Companion", page_icon="📱", layout="centered")
+
+st.title("📱 ReadX AI Companion")
+
+# Initialize Session State
+if "history" not in st.session_state:
+    st.session_state.history = []
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0  # To programmatically open the uploader again
+
+current_page = len(st.session_state.history) + 1
+
+# Mobile Sidebar Memory
+with st.sidebar:
+    st.header("📚 Book Memory")
+    st.write(f"Pages Analyzed: {len(st.session_state.history)}")
+    if st.button("🗑️ Reset Memory"):
+        st.session_state.history = []
+        st.session_state.uploader_key += 1
+        st.rerun()
+
+# --- Main App Logic ---
+
+# We only show uploader if we don't have a new summary on screen
+has_just_scanned = False
+if len(st.session_state.history) > 0 and st.session_state.get('last_summary_seen', False) is False:
+     has_just_scanned = True
+
+# 2. File Uploader configured to capture from Camera on Mobile
+if not has_just_scanned:
+    st.subheader(f"📸 Step 1: Scan Page #{current_page}")
+    st.caption("Click below to open your phone's native camera.")
     
-    /* Video Stream fitting */
-    [data-testid="stCameraInput"] video {
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: cover !important;
-        object-position: center !important;
-    }
-    
-    /* "Take Photo" Button Styling */
-    [data-testid="stCameraInput"] button {
-        width: 100% !important;
-        margin: 12px auto 0 auto !important;
-        padding: 16px !important;
-        font-size: 18px !important;
-        font-weight: bold !important;
-        border-radius: 12px !important;
-        background-color: #FF4B4B !important;
-        color: white !important;
-        border: none !important;
-    }
-    
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 2rem;
-    }
-    </style>
-""", unsafe_allow_html=True)
+    # The 'accept' attribute helps suggest opening the camera
+    photo_buffer = st.file_uploader(
+        "Capture Page Photo",
+        type=["jpg", "jpeg", "png"],
+        key=f"uploader_{st.session_state.uploader_key}",
+        accept_multiple_files=False,
+    )
 
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    if photo_buffer:
+        image = Image.open(photo_buffer)
+        
+        # Immediate Analyze (Auto-Action upon upload)
+        with st.spinner("🚀 AI analyzing the page..."):
+             # Previous Context Build
+            context_prompt = ""
+            if len(st.session_state.history) > 0:
+                context_prompt = "PREVIOUS PAGES CONTEXT:\n"
+                for idx, prev in enumerate(st.session_state.history, 1):
+                    context_prompt += f"--- Page {idx} ---\n{prev}\n\n"
 
-# Session state initialize karo
-if "captured_image" not in st.session_state:
-    st.session_state.captured_image = None
-if "result" not in st.session_state:
-    st.session_state.result = None
-
-st.title("📖 ReadX AI")
-st.caption("Let AI help you read & learn faster")
-
-def resize_image(image, max_size=1024):
-    """Image ko chota karo taake upload aur processing fast ho"""
-    image.thumbnail((max_size, max_size))
-    return image
-
-def analyze_page(image):
-    prompt = """Analyze this book page and give:
+            prompt = f"""
+            You are a book reading assistant.
+            {context_prompt}
+            Analyze this image for CURRENT Page #{current_page}:
+            "Analyze this book page and give:
     1. **Core Idea**: 3-4 simple sentences on what's happening/being said.
     2. **Main Lesson**: 1-2 lines - the key takeaway.
     3. **Action Points**: Practical tips if any exist, else say "No direct action points."
-    Use simple, plain English."""
+    Use simple, plain English.
+            """
+            
+            # API Call (Uncomment when you have key)
+            # model = genai.GenerativeModel("gemini-1.5-flash")
+            # response = model.generate_content([prompt, image])
+            # summary_text = response.text
+            
+            # Placeholder summary (Comment when API key is set)
+            summary_text = f"Sample summary for Page {current_page}. Gemini analyzed the photo taken from your phone camera perfectly."
 
-    model = genai.GenerativeModel("gemini-3.5-flash-lite")
-    response = model.generate_content([prompt, image])
-    return response.text
+            # Save to Memory
+            st.session_state.history.append(summary_text)
+            st.session_state.last_summary_seen = False # Mark as just scanned
+            st.rerun()
 
-# Agar result nahi hai, camera dikhao
-if st.session_state.result is None:
-    photo = st.camera_input("📷 Book page ki photo lo", label_visibility="collapsed")
-
-    if photo is not None:
-        image = Im.open(photo)
-        image = resize_image(image)
-        st.session_state.captured_image = image
-
-        with st.spinner("Padh raha hoon... ⏳"):
-            st.session_state.result = analyze_page(image)
-        st.rerun()
-
-# Agar result hai, wo dikhao + Next button
+# 3. Display the New Summary AND the 'Next Page' Button
 else:
-    st.image(st.session_state.captured_image, use_container_width=True)
-    st.markdown("### 📝 Summary")
-    st.write(st.session_state.result)
+    latest_page_idx = len(st.session_state.history)
+    latest_page_num = latest_page_idx
+    
+    st.success(f"Page #{latest_page_num} Breakdown (New)")
+    
+    # Custom styling for summary card
+    st.markdown(f"""
+        <div style="background-color:#f0f2f6; padding:20px; border-radius:10px; margin-bottom:20px;">
+            {st.session_state.history[latest_page_idx - 1]}
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # THE CRUCIAL PART: The "NEXT PAGE" Button
+    st.subheader(f"🔜 Step 2: Next Page Cycle")
+    
+    if st.button("➡️ Scan Page #{}" .format(latest_page_num + 1), type="primary", use_container_width=True):
+        st.session_state.uploader_key += 1 # Reset the uploader
+        st.session_state.last_summary_seen = True # Mark summary as acknowledged
+        st.rerun() # Forces rerendering and reopens uploader
 
-    if st.button("➡️ Next Page", use_container_width=True, type="primary"):
-        st.session_state.captured_image = None
-        st.session_state.result = None
-        st.rerun()
+# --- Display History Accordion ---
+if len(st.session_state.history) > 1:
+    st.markdown("---")
+    st.header("📄 Reading Trail")
+    
+    # Show history but hide the latest one as it's shown above
+    for idx, page_summary in enumerate(st.session_state.history[:-1], 1):
+        with st.expander(f"Page {idx} Breakdown"):
+            st.markdown(page_summary)
